@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Digital Twin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1"></script>
+</head>
+
+<body class="bg-light"
+    style="background: url('https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=2070&auto=format&fit=crop') no-repeat center center fixed; background-size: cover;">
+    <!-- Add a subtle overlay to the body background so cards pop -->
+    <div
+        style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.4); pointer-events: none; z-index: -1;">
+    </div>
+
+    <nav class="navbar navbar-light apple-nav shadow-sm sticky-top">
+        <div class="container-fluid py-2 d-flex flex-column align-items-start">
+            <span class="navbar-brand mb-0 h3 fw-bold" style="letter-spacing: -0.5px;">Digital Twin</span>
+            <span class="text-muted small fw-semibold">AI-Enabled Air Quality Digital Twin</span>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <div class="row mb-5">
+            <div class="col-md-12">
+                <div class="card apple-card p-2">
+                    <div class="card-body d-flex flex-wrap gap-3 align-items-end">
+                        <div>
+                            <label class="form-label text-muted small mb-1">City</label>
+                            <div class="d-flex gap-2">
+                                <input type="text" id="cityInput" class="form-control" placeholder="e.g., Delhi">
+                                <button class="btn btn-primary" onclick="searchStations()">🔍 Search</button>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow-1">
+                            <label class="form-label text-muted small mb-1">Monitoring Station</label>
+                            <select id="stationSelect" class="form-select">
+                                <option value="">Select a station...</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label text-muted small mb-1">Start Date</label>
+                            <input type="date" id="startDate" class="form-control">
+                        </div>
+
+                        <div>
+                            <label class="form-label text-muted small mb-1">End Date</label>
+                            <input type="date" id="endDate" class="form-control">
+                        </div>
+
+                        <div>
+                            <label class="form-label text-muted small mb-1">AI Model</label>
+                            <select id="modelSelect" class="form-select">
+                                <option value="random_forest">Random Forest</option>
+                                <option value="gradient_boosting">Gradient Boosting</option>
+                                <option value="linear_regression">Linear Regression</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-success" onclick="syncTwin()" id="syncBtn">🔄 Sync Twin</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboardArea" style="display: none;">
+            <h4 class="mb-3 text-secondary">Real-Time Pollutant Analysis</h4>
+            <div id="metricsGrid" class="row"></div>
+
+            <!-- OpenAQ Notification Banner -->
+            <div class="row mt-3" id="alertBanner" style="display: none;">
+                <div class="col-12">
+                    <div class="alert alert-warning d-flex align-items-center mb-0 shadow-sm border-0" role="alert">
+                        <div>
+                            <h6 class="alert-heading mb-1 d-flex align-items-center gap-2">
+                                ⚠️ <span>Sensor Connectivity Alert</span>
+                            </h6>
+                            <small id="alertMessage" class="mb-0">The selected OpenAQ station has stopped reporting data
+                                before the chosen End Date.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4" id="chartsGrid">
+                <!-- Individual charts will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Graph Modal -->
+    <div class="modal fade" id="graphModal" tabindex="-1" aria-labelledby="graphModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="graphModalLabel">Pollutant Forecast</h5>
+                    <div class="d-flex align-items-center gap-2 ms-auto me-3">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="resetModalZoom()">🔄 Reset
+                            Zoom</button>
+                    </div>
+                    <button type="button" class="btn-close ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div style="height: 50vh; position: relative; margin-bottom: 2rem;">
+                        <canvas id="modalChartCanvas"></canvas>
+                    </div>
+                    <div class="table-responsive">
+                        <h6 class="fw-bold text-secondary mb-3">24-Hour Prediction Data</h6>
+                        <table class="table table-sm table-hover text-center" style="font-size: 0.9rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Predicted Value</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modalPredictionTableBody">
+                                <!-- Data injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pollutant Info Modal -->
+    <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold" id="infoModalLabel">Pollutant Info</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="fw-bold text-primary mb-2" id="infoTitle">Sources & Effects</h6>
+                    <p id="infoDescription" class="text-muted" style="line-height: 1.6;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS for Modals -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        let myCharts = [];
+        let modalChartInstance = null;
+
+        const pollutantInfo = {
+            'co': 'Carbon Monoxide (CO) is a colorless, odorless gas. High levels typically originate from vehicle emissions, industrial processes, and fuel combustion. It reduces the amount of oxygen that can be transported in the blood stream, causing dizziness, confusion, and can be fatal in enclosed spaces.',
+            'no': 'Nitric Oxide (NO) is a colorless gas emitted primarily by motor vehicles and industrial combustion. While less directly toxic than Nitrogen Dioxide (NO2), NO rapidly reacts with oxygen in the air to form NO2, significantly contributing to smog, acid rain, and respiratory issues.',
+            'no2': 'Nitrogen Dioxide (NO2) is a nasty-smelling gas. It primarily gets in the air from the burning of fuel (cars, trucks, power plants). Breathing air with a high concentration of NO2 can irritate airways in the human respiratory system and aggravate asthma.',
+            'nox': 'Nitrogen Oxides (NOx) refers to a group of highly reactive gases, primarily Nitric Oxide (NO) and Nitrogen Dioxide (NO2). They contribute to the formation of ground-level ozone and fine particle pollution, which can cause or worsen respiratory diseases.',
+            'nh3': 'Ammonia (NH3) is a colorless gas with a characteristic pungent smell. It is primarily released from agricultural activities and vehicle exhaust. In the atmosphere, it reacts to form fine particulate matter (PM2.5), which can deeply penetrate the lungs and affect respiratory health.',
+            'o3': 'Ozone (O3) at ground level is a harmful air pollutant created by chemical reactions between oxides of nitrogen (NOx) and volatile organic compounds (VOC) in the presence of sunlight. It causes coughing, throat irritation, and worsens asthma and bronchitis.',
+            'pm10': 'Particulate Matter 10 (PM10) are inhalable particles, with diameters that are generally 10 micrometers and smaller. They consist of dust, pollen, and mold. Exposure affects the lungs and heart, causing respiratory issues.',
+            'pm25': 'Fine Particulate Matter (PM2.5) are tiny particles 2.5 micrometers or smaller. Because of their size, they can travel deep into the respiratory tract, reaching the lungs. They come from vehicle exhaust, power plants, and wood burning, and are linked to severe health effects including heart attacks.',
+            'pm1': 'Ultrafine Particulate Matter (PM1) are extremely small particles less than 1 micrometer in diameter. Because of their tiny size, they can cross the blood-brain barrier and are considered highly dangerous to long-term neurological and cardiovascular health.',
+            'so2': 'Sulfur Dioxide (SO2) comes from the burning of fossil fuels by power plants and other industrial facilities. Short-term exposures to SO2 can harm the human respiratory system and make breathing difficult, especially for children and those with asthma.',
+        };
+
+        document.addEventListener("DOMContentLoaded", function () {
+            let today = new Date();
+            let lastWeek = new Date();
+            lastWeek.setDate(today.getDate() - 7);
+
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+            document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];
+        });
+
+        function searchStations() {
+            let q = document.getElementById('cityInput').value;
+            fetch(`/get_locations?q=${q}`)
+                .then(res => res.json())
+                .then(data => {
+                    let sel = document.getElementById('stationSelect');
+                    sel.innerHTML = '<option value="">Select a station...</option>';
+                    data.forEach(s => {
+                        let opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.text = s.name;
+                        if (s.coordinates) {
+                            opt.dataset.lat = s.coordinates.latitude;
+                            opt.dataset.lon = s.coordinates.longitude;
+                        }
+                        sel.appendChild(opt);
+                    });
+                });
+        }
+
+        function getRiskStatus(pollutant, value) {
+            let thresholds = { 'pm25': 35, 'pm10': 50, 'no2': 40, 'o3': 100, 'co': 4000 };
+            let key = pollutant.toLowerCase();
+            if (thresholds[key] && value > thresholds[key]) {
+                return { text: 'Hazardous Alert', class: 'risk-high', badge: 'bg-danger' };
+            }
+            return { text: 'Safe Levels', class: 'risk-safe', badge: 'bg-success' };
+        }
+
+        function syncTwin() {
+            let sel = document.getElementById('stationSelect');
+            let id = sel.value;
+            if (!id) return alert("Please select a station first.");
+
+            let lat = sel.options[sel.selectedIndex].dataset.lat;
+            let lon = sel.options[sel.selectedIndex].dataset.lon;
+            let start = document.getElementById('startDate').value;
+            let end = document.getElementById('endDate').value;
+            let model = document.getElementById('modelSelect').value;
+
+            if (!start || !end) return alert("Please select a valid date range.");
+
+            document.getElementById('syncBtn').innerText = "Syncing AI & Weather...";
+
+            fetch('/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    station_id: id, lat: lat, lon: lon, start_date: start, end_date: end, model: model
+                })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('dashboardArea').style.display = 'block';
+                    document.getElementById('syncBtn').innerText = "🔄 Sync Twin";
+
+                    let grid = document.getElementById('metricsGrid');
+                    grid.innerHTML = '';
+
+                    let chartDatasets = [];
+                    let allLabelsSet = new Set();
+
+                    // Pass 1: Collect ALL unique timestamps safely
+                    Object.keys(data).forEach((key, index) => {
+                        let param = data[key];
+                        if (param.labels) param.labels.forEach(l => allLabelsSet.add(l));
+                        if (param.predicted_labels) param.predicted_labels.forEach(l => allLabelsSet.add(l));
+                    });
+
+                    // Sort all raw timestamps
+                    let sortedRawLabels = Array.from(allLabelsSet).sort((a, b) => new Date(a) - new Date(b));
+                    // Convert to readable Format string representation for X-axis
+                    let chartLabels = sortedRawLabels.map(l => {
+                        let date = new Date(l);
+                        return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    });
+
+                    // Check for OpenAQ data gaps
+                    let alertBanner = document.getElementById('alertBanner');
+                    let endDt = new Date(end + "T23:59:59Z");
+
+                    let latestReportedTime = 0;
+                    Object.values(data).forEach(param => {
+                        if (param.labels && param.labels.length > 0) {
+                            let t = new Date(param.labels[param.labels.length - 1]).getTime();
+                            if (t > latestReportedTime) latestReportedTime = t;
+                        }
+                    });
+
+                    // If the last reported data is more than a day before the selected end date
+                    if (latestReportedTime > 0 && (endDt.getTime() - latestReportedTime > 86400000)) {
+                        alertBanner.style.display = 'block';
+                        let lastDateStr = new Date(latestReportedTime).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        document.getElementById('alertMessage').innerText = `Notice: The OpenAQ station stopped reporting data on ${lastDateStr}. AI predictions have been bridged to cover your selected End Date.`;
+                    } else {
+                        alertBanner.style.display = 'none';
+                    }
+
+                    let chartsGrid = document.getElementById('chartsGrid');
+                    chartsGrid.innerHTML = '';
+
+                    // Destroy old charts to prevent memory leaks
+                    myCharts.forEach(c => c.chart.destroy());
+                    myCharts = [];
+
+                    if (Object.keys(data).length === 0) {
+                        grid.innerHTML = "<p class='text-danger'>No data available for this station in the selected date range.</p>";
+                        return;
+                    }
+
+                    Object.keys(data).forEach((key, index) => {
+                        let param = data[key];
+                        let risk = getRiskStatus(key, param.current);
+
+                        let card = `
+                        <div class="col-md-3 mb-4">
+                            <div class="metric-card ${risk.class} h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="m-0 text-uppercase fw-bold text-secondary cursor-pointer" onclick="openInfoModal('${key}')" style="cursor: pointer; position: relative; z-index: 10;" onmouseover="this.style.color='#007aff'" onmouseout="this.style.color=''">
+                                        ${key} <span style="font-size: 0.8em; opacity: 0.5;">ℹ️</span>
+                                    </h5>
+                                    <span class="badge ${risk.badge}">${risk.text}</span>
+                                </div>
+                                <h3 class="fw-bold fs-2 text-dark">${param.current} <span class="fs-6 text-muted">${param.unit}</span></h3>
+                                <div class="mt-3 p-3 rounded" style="background: rgba(0,0,0,0.03);">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <small class="text-muted fw-semibold">Next Hr Forecast</small>
+                                        <small class="fw-bold text-primary fs-6">${param.predicted_1hr} <span style="font-size: 0.8em;">${param.unit}</span></small>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted" style="font-size: 0.75rem;">Model: ${document.getElementById('modelSelect').options[document.getElementById('modelSelect').selectedIndex].text}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                        grid.innerHTML += card;
+
+                        // Compute specific history/pred datasets for this pollutant only
+                        let histMap = {};
+                        if (param.labels && param.history) {
+                            param.labels.forEach((l, i) => { histMap[l] = param.history[i]; });
+                        }
+
+                        let predMap = {};
+                        if (param.predicted_labels && param.predicted_24hr) {
+                            predMap = Object.fromEntries(param.predicted_labels.map((l, i) => [l, param.predicted_24hr[i]]));
+                            if (param.labels && param.labels.length > 0) {
+                                let lastHistLabel = param.labels[param.labels.length - 1];
+                                predMap[lastHistLabel] = histMap[lastHistLabel];
+                            }
+                        }
+
+                        let histData = sortedRawLabels.map(l => histMap[l] !== undefined ? histMap[l] : null);
+                        let predData = sortedRawLabels.map(l => predMap[l] !== undefined ? predMap[l] : null);
+
+                        let colors = ['#007bff', '#dc3545', '#ffc107', '#28a745', '#6f42c1', '#17a2b8', '#e83e8c'];
+                        let color = colors[index % colors.length];
+
+                        let dsHistory = {
+                            label: key.toUpperCase() + ' History',
+                            data: histData,
+                            borderColor: color,
+                            tension: 0.3,
+                            fill: false,
+                            spanGaps: true
+                        };
+
+                        let dsForecast = {
+                            label: key.toUpperCase() + ' Forecast (24H)',
+                            data: predData,
+                            borderColor: color,
+                            borderDash: [5, 5],
+                            tension: 0.3,
+                            fill: false,
+                            spanGaps: true
+                        };
+
+                        // Add a dedicated canvas to the charts grid for this specific pollutant
+                        let canvasId = `chart_${key}`;
+                        let chartBlock = `
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card apple-card h-100 cursor-pointer" onclick="openModalChart('${key}')" style="cursor: pointer; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                                <div class="card-body chart-container bg-transparent p-4" style="position: relative; height: 320px;">
+                                    <div class="d-flex justify-content-between mb-2">
+                                        <h6 class="card-title fw-bold text-dark text-uppercase m-0">${key} Forecast</h6>
+                                        <span class="text-primary small fw-semibold bg-primary bg-opacity-10 px-2 py-1 rounded">🔍 Enlarge</span>
+                                    </div>
+                                    <div style="height: calc(100% - 30px); width: 100%;">
+                                        <canvas id="${canvasId}"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                        chartsGrid.innerHTML += chartBlock;
+
+                        // Render the individual chart via Chart.js
+                        setTimeout(() => {
+                            let ctx = document.getElementById(canvasId).getContext('2d');
+                            let newChart = new Chart(ctx, {
+                                type: 'line',
+                                data: { labels: chartLabels, datasets: [dsHistory, dsForecast] },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } },
+                                    scales: {
+                                        y: { beginAtZero: true },
+                                        x: {
+                                            ticks: {
+                                                maxRotation: 45,
+                                                minRotation: 45,
+                                                maxTicksLimit: 7 // Only show a few labels to prevent overlap
+                                            }
+                                        }
+                                    },
+                                    elements: { point: { radius: 0, hoverRadius: 4 } }, // Hid points on small graph to make it cleaner
+                                    spanGaps: true
+                                }
+                            });
+                            myCharts.push({ id: key, chart: newChart, chartData: { labels: chartLabels, datasets: [dsHistory, dsForecast] }, rawData: param });
+                        }, 0);
+
+                    });
+
+                })
+                .catch(err => {
+                    console.error("DEBUG JS ERROR:", err);
+                    document.getElementById('syncBtn').innerText = "🔄 Sync Twin";
+
+                    let grid = document.getElementById('metricsGrid');
+                    grid.innerHTML = `<div class='col-12'><div class='alert alert-danger shadow-sm border-0'>
+                        <h6 class='fw-bold mb-2'>Dashboard Render Exception</h6>
+                        <pre class='text-danger mb-0' style='white-space: pre-wrap;'>${err.toString()}</pre>
+                        <hr>
+                        <p class='small text-muted mb-0'>Please report this error to the agent.</p>
+                    </div></div>`;
+                });
+        }
+
+        function openModalChart(pollutantKey) {
+            let targetChartData = myCharts.find(c => c.id === pollutantKey);
+            if (!targetChartData) return;
+
+            document.getElementById('graphModalLabel').innerText = `${pollutantKey.toUpperCase()} History & Forecast`;
+
+            let modalCtx = document.getElementById('modalChartCanvas').getContext('2d');
+
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+            }
+
+            modalChartInstance = new Chart(modalCtx, {
+                type: 'line',
+                data: targetChartData.chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { boxWidth: 20, font: { size: 14 } } },
+                        tooltip: { mode: 'index', intersect: false },
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x',
+                                scaleMode: 'xy'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Concentration' }
+                        },
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                maxTicksLimit: 15 // Show more dates on the big graph, but still prevent complete overlap
+                            }
+                        }
+                    },
+                    elements: { point: { radius: 2, hoverRadius: 6 } }, // Show dots on the large graph
+                    spanGaps: true
+                }
+            });
+
+            // Populate Table
+            let tbody = document.getElementById('modalPredictionTableBody');
+            tbody.innerHTML = '';
+
+            let param = targetChartData.rawData;
+            if (param.predicted_labels && param.predicted_24hr && param.predicted_labels.length > 0) {
+                for (let i = 0; i < param.predicted_labels.length; i++) {
+                    let dateStr = param.predicted_labels[i];
+                    let val = param.predicted_24hr[i];
+
+                    let dateObj = new Date(dateStr);
+                    let formattedTime = dateObj.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="text-muted fw-semibold">${formattedTime}</td>
+                            <td class="fw-bold text-primary">${val} <span style="font-size: 0.8em; color: #6c757d;">${param.unit}</span></td>
+                        </tr>
+                    `;
+                }
+            } else {
+                tbody.innerHTML = `<tr><td colspan="2" class="text-muted">No prediction data available.</td></tr>`;
+            }
+
+            var graphModal = new bootstrap.Modal(document.getElementById('graphModal'));
+            graphModal.show();
+        }
+
+        function resetModalZoom() {
+            if (modalChartInstance) {
+                modalChartInstance.resetZoom();
+            }
+        }
+
+        function openInfoModal(pollutantKey) {
+            // Normalize key: lowercase and removing dots/dashes (e.g., pm2.5 -> pm25)
+            let key = pollutantKey.toLowerCase().replace(/[.\-\s]/g, '');
+            document.getElementById('infoModalLabel').innerText = `What is ${pollutantKey.toUpperCase()}?`;
+            document.getElementById('infoDescription').innerText = pollutantInfo[key] || "No description available for this pollutant at this time.";
+
+            var infoModal = new bootstrap.Modal(document.getElementById('infoModal'));
+            infoModal.show();
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+</body>
+
+</html>

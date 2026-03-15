@@ -1,0 +1,154 @@
+/* Apple Aesthetic System Styling */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+body {
+    background: linear-gradient(135deg, #f6f8fa 0%, #e9ecef 100%);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+    color: #1d1d1f;
+    min-height: 100vh;
+}
+
+/* Glass Navbar */
+.apple-nav {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.apple-nav .navbar-brand {
+    font-weight: 600;
+    color: #1d1d1f !important;
+    letter-spacing: -0.5px;
+}
+
+/* Glassmorphic Cards */
+.apple-card {
+    background: rgba(255, 255, 255, 0.65) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04) !important;
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+}
+
+.metric-card.cursor-pointer:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+}
+
+.metric-card h3 {
+    font-weight: 700;
+    letter-spacing: -1px;
+}
+
+/* Subtle Risk Tags */
+.risk-high {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(255, 245, 245, 0.9));
+    border-left: 4px solid #ff3b30;
+}
+
+.risk-safe {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(245, 255, 248, 0.9));
+    border-left: 4px solid #34c759;
+}
+
+/* Modern Badges */
+.badge {
+    font-weight: 500;
+    padding: 6px 10px;
+    border-radius: 8px;
+}
+
+.bg-danger {
+    background-color: #ff3b30 !important;
+}
+
+.bg-success {
+    background-color: #34c759 !important;
+}
+
+/* Apple-style Buttons & Inputs */
+.form-control,
+.form-select {
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.8);
+    transition: all 0.2s;
+}
+
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.2);
+    border-color: #007aff;
+    background: #fff;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #007aff, #005bb5);
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 122, 255, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #34c759, #28a745);
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.btn-success:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(52, 199, 89, 0.4);
+}
+
+.btn-success:active {
+    transform: translateY(0);
+}
+
+/* 3D Chart Cards Customization */
+.apple-card.cursor-pointer:hover {
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Chart Containers */
+.chart-container {
+    border-radius: 20px;
+}
+
+/* Modals */
+.modal-content {
+    border-radius: 24px;
+    backdrop-filter: blur(25px);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
